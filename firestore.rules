@@ -1,0 +1,111 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isTeacher() {
+      // For simplicity in this session-based app, we check if the user has teacher role in their profile
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+    }
+
+    // --- Entity Validations ---
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['role', 'displayName']) &&
+             data.keys().size() <= 4 &&
+             data.role in ['teacher', 'student'] &&
+             data.displayName is string && data.displayName.size() <= 100 &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 200));
+    }
+
+    function isValidSession(data) {
+      return data.keys().hasAll(['name', 'teacherId', 'status', 'createdAt']) &&
+             data.keys().size() <= 6 &&
+             data.name is string && data.name.size() <= 200 &&
+             data.teacherId == request.auth.uid &&
+             data.status in ['active', 'paused', 'finished'] &&
+             data.createdAt is timestamp &&
+             (!('spotlightQuestionId' in data) || (data.spotlightQuestionId is string));
+    }
+
+    function isValidQuestion(data) {
+      return data.keys().hasAll(['text', 'authorId', 'status', 'createdAt', 'level', 'voteCount']) &&
+             data.keys().size() <= 10 &&
+             data.text is string && data.text.size() <= 2000 &&
+             data.authorId == request.auth.uid &&
+             data.status in ['active', 'merged', 'hidden', 'answered', 'golden'] &&
+             data.level is int && data.level >= 1 && data.level <= 3 &&
+             data.voteCount is int &&
+             (!('authorName' in data) || (data.authorName is string)) &&
+             (!('isAnonymous' in data) || (data.isAnonymous is bool)) &&
+             (!('category' in data) || (data.category is string)) &&
+             (!('parentId' in data) || (data.parentId is string));
+    }
+
+    function isValidVote(data) {
+      return data.keys().hasAll(['userId', 'createdAt']) &&
+             data.keys().size() == 2 &&
+             data.userId == request.auth.uid &&
+             data.createdAt is timestamp;
+    }
+
+    // --- Matches ---
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) &&
+                    incoming().role == existing().role; // Cannot change role once set
+    }
+
+    match /sessions/{sessionId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidSession(incoming());
+      allow update: if (isTeacher() || existing().teacherId == request.auth.uid) && isValidSession(incoming());
+      
+      match /questions/{questionId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && isValidQuestion(incoming()) && 
+                       incoming().voteCount == 0 &&
+                       incoming().status == 'active';
+        
+        allow update: if isSignedIn() && (
+          // Student voting (only voteCount changes)
+          (incoming().diff(existing()).affectedKeys().hasOnly(['voteCount']) && isValidQuestion(incoming())) ||
+          // Teacher managing
+          ((isTeacher() || get(/databases/$(database)/documents/sessions/$(sessionId)).data.teacherId == request.auth.uid) && isValidQuestion(incoming()))
+        );
+
+        match /votes/{userId} {
+          allow read: if isSignedIn();
+          allow create: if isOwner(userId) && isValidVote(incoming());
+          allow delete: if isOwner(userId);
+        }
+      }
+    }
+  }
+}

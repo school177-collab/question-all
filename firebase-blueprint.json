@@ -1,0 +1,74 @@
+{
+  "entities": {
+    "Session": {
+      "title": "Session",
+      "description": "A live question-and-answer session.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "paused", "finished"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "spotlightQuestionId": { "type": "string", "description": "ID of the question currently being spotlighted." }
+      },
+      "required": ["name", "teacherId", "status", "createdAt"]
+    },
+    "Question": {
+      "title": "Question",
+      "description": "A question submitted by a student.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "isAnonymous": { "type": "boolean" },
+        "level": { "type": "integer", "description": "AI-calculated level: 1 (basic), 2 (insightful), 3 (creative/complex)" },
+        "category": { "type": "string" },
+        "voteCount": { "type": "integer" },
+        "status": { "type": "string", "enum": ["active", "merged", "hidden", "answered", "golden"] },
+        "parentId": { "type": "string", "description": "Target question ID if this one was merged." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "authorId", "status", "createdAt", "level", "voteCount"]
+    },
+    "Vote": {
+      "title": "Vote",
+      "description": "A vote cast by a user on a question.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "createdAt"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile with role.",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["teacher", "student"] },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" }
+      },
+      "required": ["role", "displayName"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles."
+    },
+    "/sessions/{sessionId}": {
+      "schema": "Session",
+      "description": "Root session documents."
+    },
+    "/sessions/{sessionId}/questions/{questionId}": {
+      "schema": "Question",
+      "description": "Questions within a session."
+    },
+    "/sessions/{sessionId}/questions/{questionId}/votes/{userId}": {
+      "schema": "Vote",
+      "description": "Individual votes to prevent duplicates."
+    }
+  }
+}
