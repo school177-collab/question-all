@@ -50,6 +50,7 @@ export default function QuestionBoard({ sessionId, onBack }: QuestionBoardProps)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewMode, setViewMode] = useState<'galaxy' | 'tracks'>('tracks');
   const [isAnonymous, setIsAnonymous] = useState(true);
+  const [focusedQuestion, setFocusedQuestion] = useState<Question | null>(null);
 
   // Stats
   const topQuestions = useMemo(() => [...questions].sort((a, b) => b.voteCount - a.voteCount).slice(0, 3), [questions]);
@@ -174,9 +175,45 @@ export default function QuestionBoard({ sessionId, onBack }: QuestionBoardProps)
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-bg relative overflow-hidden">
+    <div className="flex-1 flex flex-col min-h-0 bg-bg relative overflow-hidden noise-bg">
+      {/* Visual Background Elements */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5" strokeOpacity="0.05" />
+            </pattern>
+            <radialGradient id="grad1" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+              <stop offset="0%" stopColor="#3E8BFF" stopOpacity="0.15" />
+              <stop offset="100%" stopColor="#3E8BFF" stopOpacity="0" />
+            </radialGradient>
+            <radialGradient id="grad2" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+              <stop offset="0%" stopColor="#FFD700" stopOpacity="0.1" />
+              <stop offset="100%" stopColor="#FFD700" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#grid)" />
+          
+          {/* Decorative shapes */}
+          <circle cx="85%" cy="20%" r="300" fill="url(#grad1)" />
+          <circle cx="15%" cy="80%" r="400" fill="url(#grad2)" />
+          
+          {/* Subtle dots */}
+          {[...Array(50)].map((_, i) => (
+            <circle 
+              key={i}
+              cx={`${Math.random() * 100}%`} 
+              cy={`${Math.random() * 100}%`} 
+              r={Math.random() * 0.8} 
+              fill="white" 
+              fillOpacity={Math.random() * 0.3}
+            />
+          ))}
+        </svg>
+      </div>
+
       {/* Sub Header for Board Info */}
-      <div className="z-10 h-12 border-b border-white/[0.03] flex items-center justify-between bg-bg/40 px-6 backdrop-blur-sm">
+      <div className="z-10 h-14 border-b border-white/[0.03] flex items-center justify-between bg-bg/60 px-6 backdrop-blur-xl">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="flex items-center gap-2 text-[10px] font-mono text-text-muted hover:text-white transition-all uppercase tracking-widest">
             <ArrowLeft className="w-3 h-3" />
@@ -188,7 +225,11 @@ export default function QuestionBoard({ sessionId, onBack }: QuestionBoardProps)
           </h2>
         </div>
 
-        <div className="flex items-center gap-4 font-mono text-[10px] text-text-muted uppercase tracking-widest">
+        <div className="flex items-center gap-6 font-mono text-[10px] text-text-muted uppercase tracking-widest">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+            LIVE
+          </div>
           <div><span className="opacity-50">동시접속:</span> 200+</div>
           <div><span className="opacity-50">수집된_질문:</span> {questions.length}</div>
         </div>
@@ -197,25 +238,37 @@ export default function QuestionBoard({ sessionId, onBack }: QuestionBoardProps)
       <div className="flex-1 flex min-h-0 divide-x divide-border">
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          <div className="flex-1 overflow-auto p-6 space-y-12">
-            {[3, 2, 1].map((lvl) => {
+          <div className="flex-1 overflow-auto p-6 space-y-16">
+            {[5, 4, 3, 2, 1].map((lvl) => {
               const lvlQuestions = questions.filter(q => q.level === lvl && q.status !== 'hidden');
               const titles = {
-                3: '수준 03 / 통찰 및 비판적 질문',
-                2: '수준 02 / 이유와 원리 탐구',
-                1: '수준 01 / 단순 지식 확인'
+                5: '수준 05 / 융합 및 창의적 제언',
+                4: '수준 04 / 비판적 분석 및 추론',
+                3: '수준 03 / 적용 및 사례 탐구',
+                2: '수준 02 / 이해 및 원리 점검',
+                1: '수준 01 / 기초 사실 및 정의'
+              };
+              const colors = {
+                5: 'text-purple-400',
+                4: 'text-red-400',
+                3: 'text-accent-gold',
+                2: 'text-accent-blue',
+                1: 'text-emerald-400'
               };
 
               return (
-                <div key={lvl} className="space-y-6">
-                  <div className="flex items-center justify-between border-b border-border pb-2">
-                    <h3 className="text-[10px] font-mono font-bold tracking-[0.2em] text-text-muted">
-                      {titles[lvl as keyof typeof titles]}
-                    </h3>
-                    <div className="text-[10px] font-mono text-text-muted opacity-40">수량: {lvlQuestions.length}</div>
+                <div key={lvl} className="space-y-8">
+                  <div className="flex items-center gap-4 border-b border-border/50 pb-3">
+                    <div className={`text-[11px] font-mono font-black px-4 py-1.5 rounded bg-surface border border-border flex items-center gap-3 ${colors[lvl as keyof typeof colors]}`}>
+                      <span className="opacity-50">LEVEL_0{lvl}</span>
+                      <div className="w-1.5 h-1.5 rounded-full bg-current shadow-[0_0_8px_currentColor]" />
+                      <span className="text-white tracking-widest">{titles[lvl as keyof typeof titles].split(' / ')[1]}</span>
+                    </div>
+                    <div className="flex-1 h-px bg-gradient-to-r from-border/50 to-transparent" />
+                    <div className="text-[10px] font-mono text-text-muted opacity-40">COUNT: {lvlQuestions.length}</div>
                   </div>
                   
-                  <div className={`grid gap-4 ${lvl === 1 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'}`}>
+                  <div className={`grid gap-6 ${lvl <= 2 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'}`}>
                     {lvlQuestions.length > 0 ? lvlQuestions.map((q) => (
                       <QuestionCard 
                         key={q.id} 
@@ -224,12 +277,14 @@ export default function QuestionBoard({ sessionId, onBack }: QuestionBoardProps)
                         onVote={() => toggleVote(q.id)}
                         onSpotlight={() => setSpotlight(q.id)}
                         onStatusChange={(status) => updateQuestionStatus(q.id, status)}
+                        onDetails={() => { setFocusedQuestion(q); }}
                         isTeacher={profile?.role === 'teacher'}
                         isSpotlighted={session?.spotlightQuestionId === q.id}
                       />
                     )) : (
-                      <div className="col-span-full py-12 text-center border-2 border-dashed border-border rounded-xl">
-                        <p className="text-text-muted text-[10px] font-mono uppercase tracking-[0.3em]">이 수준의 데이터 스트림이 비어있습니다</p>
+                      <div className="col-span-full py-16 text-center border-2 border-dashed border-border/30 rounded-2xl bg-surface/5 flex flex-col items-center gap-4">
+                        <Sparkles className="w-8 h-8 text-text-muted opacity-10" />
+                        <p className="text-text-muted text-[10px] font-mono uppercase tracking-[0.4em] max-w-xs leading-loose">수준 {lvl} 영역에 새로운 통찰이 스트리밍되기를 기다리고 있습니다</p>
                       </div>
                     )}
                   </div>
@@ -306,10 +361,10 @@ export default function QuestionBoard({ sessionId, onBack }: QuestionBoardProps)
             <div className="flex flex-wrap gap-2">
               {Array.from(new Set(questions.map(q => q.category))).slice(0, 8).map((cat, i) => (
                 <span 
-                  key={cat} 
+                  key={cat as string} 
                   className={`px-3 py-1 bg-surface border border-border rounded-full text-[10px] font-mono whitespace-nowrap ${i % 3 === 0 ? 'text-accent-blue font-bold border-accent-blue/30' : 'text-text-muted'}`}
                 >
-                  {cat.toUpperCase()}
+                  {(cat as string).toUpperCase()}
                 </span>
               ))}
               {questions.length === 0 && (
@@ -356,6 +411,82 @@ export default function QuestionBoard({ sessionId, onBack }: QuestionBoardProps)
           </div>
         </aside>
       </div>
+
+      {/* Question Details Modal */}
+      <AnimatePresence>
+        {focusedQuestion && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 bg-bg/80 backdrop-blur-md flex items-center justify-center p-6"
+            onClick={() => setFocusedQuestion(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-surface border border-border max-w-2xl w-full rounded-2xl overflow-hidden shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="p-8 space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-accent-blue shadow-[0_0_10px_rgba(62,139,255,1)]" />
+                    <span className="text-xs font-mono font-bold text-text-muted uppercase tracking-[0.2em]">질문_상세_정보</span>
+                  </div>
+                  <button 
+                    onClick={() => setFocusedQuestion(null)}
+                    className="p-2 hover:bg-white/5 rounded-lg text-text-muted hover:text-white transition-colors"
+                  >
+                    닫기 [ESC]
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-accent-blue/10 border border-accent-blue/30 rounded text-[10px] font-mono text-accent-blue font-bold uppercase">
+                    LEVEL_0{focusedQuestion.level} / {focusedQuestion.category}
+                  </div>
+                  <h3 className="text-2xl font-bold leading-tight font-sans">
+                    "{focusedQuestion.text}"
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6 pt-6 border-t border-border">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono text-text-muted uppercase">질문자</span>
+                    <p className="font-bold">{focusedQuestion.authorName}</p>
+                  </div>
+                  <div className="space-y-1 text-right">
+                    <span className="text-[10px] font-mono text-text-muted uppercase">투표_수</span>
+                    <p className="font-black text-accent-gold text-xl">{focusedQuestion.voteCount}</p>
+                  </div>
+                </div>
+
+                <div className="bg-bg/50 p-4 rounded-xl border border-border flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-mono text-text-muted">
+                    <History className="w-3 h-3" />
+                    로그_시간: {focusedQuestion.createdAt?.toDate().toLocaleString()}
+                  </div>
+                  <button 
+                    onClick={() => {
+                       toggleVote(focusedQuestion.id);
+                       setFocusedQuestion(null);
+                    }}
+                    className={`px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transition-all ${
+                      votedQuestionIds.has(focusedQuestion.id) 
+                        ? 'bg-red-500/10 text-red-400 border border-red-500/30' 
+                        : 'bg-accent-blue text-black hover:bg-accent-blue/80'
+                    }`}
+                  >
+                    {votedQuestionIds.has(focusedQuestion.id) ? '투표_취소' : '공감_투표'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Spotlight Overlay (Same content, updated style) */}
       <AnimatePresence>
@@ -414,22 +545,41 @@ export default function QuestionBoard({ sessionId, onBack }: QuestionBoardProps)
 interface QuestionCardProps { 
   question: Question;
   isVoted: boolean; 
-  onVote: () => void;
-  onSpotlight: () => void;
-  onStatusChange: (status: QuestionStatus) => void;
+  onVote: () => void | Promise<void>;
+  onSpotlight: () => void | Promise<void>;
+  onStatusChange: (status: QuestionStatus) => void | Promise<void>;
+  onDetails?: () => void | Promise<void>;
   isTeacher: boolean;
   isSpotlighted: boolean;
 }
 
-function QuestionCard({ question, isVoted, onVote, onSpotlight, onStatusChange, isTeacher, isSpotlighted }: QuestionCardProps) {
+const QuestionCard: React.FC<QuestionCardProps> = ({ 
+  question, 
+  isVoted, 
+  onVote, 
+  onSpotlight, 
+  onStatusChange, 
+  onDetails, 
+  isTeacher, 
+  isSpotlighted 
+}) => {
+  const levelColors = {
+    5: 'bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]',
+    4: 'bg-red-500 shadow-[0_0_10px_rgba(248,113,113,0.5)]',
+    3: 'bg-accent-gold shadow-[0_0_10px_rgba(255,215,0,0.5)]',
+    2: 'bg-accent-blue shadow-[0_0_10px_rgba(62,139,255,0.5)]',
+    1: 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]'
+  };
+
   return (
     <motion.div 
       layout
-      className={`group relative p-4 bg-surface border ${isSpotlighted ? 'border-accent-blue shadow-[0_0_15px_rgba(62,139,255,0.1)]' : 'border-border'} ${question.status === 'golden' ? 'border-accent-gold shadow-[inset_0_0_15px_rgba(255,215,0,0.05)]' : ''} rounded-lg flex flex-col gap-4 hover:border-white/20 transition-all`}
+      onClick={onDetails}
+      className={`group relative p-4 bg-surface border ${isSpotlighted ? 'border-accent-blue shadow-[0_0_15px_rgba(62,139,255,0.1)]' : 'border-border'} ${question.status === 'golden' ? 'border-accent-gold shadow-[inset_0_0_15px_rgba(255,215,0,0.05)]' : ''} rounded-lg flex flex-col gap-4 hover:border-white/20 transition-all cursor-pointer`}
     >
       <div className="flex justify-between items-start">
         <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 bg-accent-blue rounded-full shadow-[0_0_5px_rgba(62,139,255,0.5)]" />
+          <div className={`w-1.5 h-1.5 rounded-full ${levelColors[question.level as keyof typeof levelColors]}`} />
           <span className="text-[10px] font-mono font-bold text-text-muted tracking-widest uppercase truncate max-w-[120px]">
             {question.category}
           </span>
@@ -509,7 +659,7 @@ function GalaxyView({ questions, onVote, votedIds }: { questions: Question[], on
         const pos = dynamicPositions[i];
         const size = Math.max(12, 12 + q.voteCount * 2);
         const glow = Math.min(20, q.voteCount * 4);
-        const color = q.level === 3 ? '#f59e0b' : q.level === 2 ? '#6366f1' : '#10b981';
+        const color = q.level === 5 ? '#a855f7' : q.level === 4 ? '#f87171' : q.level === 3 ? '#eab308' : q.level === 2 ? '#3b82f6' : '#10b981';
 
         return (
           <motion.div

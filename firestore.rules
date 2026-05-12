@@ -58,7 +58,7 @@ service cloud.firestore {
              data.text is string && data.text.size() <= 2000 &&
              data.authorId == request.auth.uid &&
              data.status in ['active', 'merged', 'hidden', 'answered', 'golden'] &&
-             data.level is int && data.level >= 1 && data.level <= 3 &&
+             data.level is int && data.level >= 1 && data.level <= 5 &&
              data.voteCount is int &&
              (!('authorName' in data) || (data.authorName is string)) &&
              (!('isAnonymous' in data) || (data.isAnonymous is bool)) &&

@@ -9,7 +9,7 @@ export interface UserProfile {
   email?: string;
 }
 
-export type QuestionLevel = 1 | 2 | 3;
+export type QuestionLevel = 1 | 2 | 3 | 4 | 5;
 export type QuestionStatus = 'active' | 'merged' | 'hidden' | 'answered' | 'golden';
 
 export interface Question {

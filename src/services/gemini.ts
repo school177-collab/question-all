@@ -12,10 +12,12 @@ export async function classifyQuestion(text: string): Promise<ClassificationResu
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `다음 교육적 질문을 수준(1, 2, 3)과 짧은 카테고리 명칭(한글)으로 분류해주세요.
-      수준 1: 단순 지식 확인, 정의, 사실 관계.
-      수준 2: 추론, 탐구, 이유와 원리, 원칙 탐색.
-      수준 3: 비판적 사고, 창의적 적용, 복잡한 종합 및 제언.
+      contents: `다음 교육적 질문을 수준(1~5)과 짧은 카테고리 명칭(한글)으로 분류해주세요.
+      수준 1: 단순 지식 확인, 사실 관계, 정의 등 가장 기초적인 단계.
+      수준 2: 이해도 점검, 요약, 설명, 범주화 단계.
+      수준 3: 배운 내용의 적용, 사례 연결, 문제 해결을 위한 시도 단계.
+      수준 4: 추론, 분석, 논리적 증명, 비판적 탐구 단계.
+      수준 5: 창의적 제언, 복잡한 종합, 가치 평가, 새로운 관점 제시 등 최고 난이도 단계.
       
       질문: "${text}"`,
       config: {
@@ -23,7 +25,7 @@ export async function classifyQuestion(text: string): Promise<ClassificationResu
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            level: { type: Type.INTEGER, description: "1, 2, 또는 3" },
+            level: { type: Type.INTEGER, description: "1, 2, 3, 4, 5 중 하나" },
             category: { type: Type.STRING, description: "짧은 한글 카테고리 이름 (예: 테크, 인프라, 윤리 등)" }
           },
           required: ["level", "category"]
@@ -31,10 +33,10 @@ export async function classifyQuestion(text: string): Promise<ClassificationResu
       }
     });
 
-    const result = JSON.parse(response.text || '{"level": 1, "category": "General"}');
+    const result = JSON.parse(response.text || '{"level": 1, "category": "일반"}');
     return {
-      level: (result.level >= 1 && result.level <= 3) ? result.level as QuestionLevel : 1,
-      category: result.category || "General"
+      level: (result.level >= 1 && result.level <= 5) ? result.level as QuestionLevel : 1,
+      category: result.category || "일반"
     };
   } catch (error) {
     console.error("AI Classification failed:", error);
